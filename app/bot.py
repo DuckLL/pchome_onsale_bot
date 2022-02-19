@@ -7,7 +7,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 
 def cancel(update: Update, _: CallbackContext) -> int:
-    update.callback_query.edit_message_text(f"動作取消")
+    update.callback_query.edit_message_text("動作取消")
     return ConversationHandler.END
 
 
@@ -66,17 +66,25 @@ def list_item(update: Update, context: CallbackContext) -> None:
             )
         ])
     update.message.reply_text(text="目前監控商品",
-                              parse_mode=ParseMode.MARKDOWN,
                               reply_markup=InlineKeyboardMarkup(buttons))
+    return
 
 
 def list_confirm(update: Update, context: CallbackContext) -> None:
     item = update.callback_query.data.split("_")
     monitor_row = monitor_db.find_one(user=item[1], pid=item[2])
+    if monitor_row == None:
+        update.callback_query.edit_message_text("此商品已不存在監控名單中")
+        return
     prod_row = prod_db.find_one(pid=item[2])
+    if prod_row == None:
+        update.callback_query.edit_message_text("此商品已不存在監控名單中")
+        return
     update.callback_query.edit_message_text(
         f"[商品資訊: {monitor_row['name']}\n目前價錢: {prod_row['last_price']}](https://24h.pchome.com.tw/prod/{monitor_row['pid']})",
-        parse_mode=ParseMode.MARKDOWN,disable_web_page_preview=True)
+        parse_mode=ParseMode.MARKDOWN,
+        disable_web_page_preview=True)
+    return
 
 
 def delete(update: Update, context: CallbackContext) -> None:
@@ -91,11 +99,15 @@ def delete(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(text="點選刪除",
                               parse_mode=ParseMode.MARKDOWN,
                               reply_markup=InlineKeyboardMarkup(buttons))
+    return
 
 
 def delete_confirm(update: Update, context: CallbackContext) -> None:
     item = update.callback_query.data.split("_")
     monitor_row = monitor_db.find_one(user=item[1], pid=item[2])
+    if monitor_row == None:
+        update.callback_query.edit_message_text("此商品已不存在監控名單中")
+        return
     delete_monitor(monitor_row["user"], monitor_row["pid"])
     update.callback_query.edit_message_text(
         f"[刪除商品: {monitor_row['name']}](https://24h.pchome.com.tw/prod/{monitor_row['pid']})",
@@ -103,7 +115,9 @@ def delete_confirm(update: Update, context: CallbackContext) -> None:
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("反悔",
                                  callback_data=f"undo_{monitor_row['pid']}")
-        ]]),disable_web_page_preview=True)
+        ]]),
+        disable_web_page_preview=True)
+    return
 
 
 def undo(update: Update, context: CallbackContext) -> None:
@@ -113,8 +127,9 @@ def undo(update: Update, context: CallbackContext) -> None:
         update.callback_query.edit_message_text(text="查商品以下架")
         return
     add_monitor(update.callback_query.from_user["id"], pid)
-    price = get_prod_info(context.user_data["pid"])["Price"]["P"]
+    price = get_prod_info(pid)["Price"]["P"]
     update.callback_query.edit_message_text(f"目前價錢: {price}")
+    return
 
 
 def main():
