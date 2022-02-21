@@ -1,4 +1,5 @@
 app/config.py
+app/bot.db*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
