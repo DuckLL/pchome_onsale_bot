@@ -79,6 +79,16 @@ def test_price_rise_is_silent_but_recorded(store):
     assert store.product(A)["last_price"] == 3500
 
 
+def test_one_broken_product_does_not_stop_the_rest(store):
+    def fetch(pid):
+        if pid == B:
+            raise KeyError("Price")
+        return pchome.Product(pid, "x", 2990)
+    notices = run(bot.check_prices(store, fetch))
+    assert [n.users for n in notices] == [[1, 2]]
+    assert store.product(A)["last_price"] == 2990
+
+
 def test_check_mode_writes_nothing(store):
     notices = run(bot.check_prices(store, prices(**{A: 2990, B: None}), write=False))
     assert len(notices) == 1

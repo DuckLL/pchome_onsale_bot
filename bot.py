@@ -60,27 +60,35 @@ async def check_prices(store: Store, fetch=pchome.fetch, *, write: bool = True) 
     """
     notices = []
     for pid in store.watched_pids():
-        prod = store.product(pid)
-        new = await asyncio.to_thread(fetch, pid)
-        if new is None:
-            errors = prod["error"] if prod and prod["error"] else 0
-            if errors > MAX_ERRORS:
-                name = prod["name"] if prod else pid
-                body = f"{name}\n此商品已下架，自動移除監控"
-                notices.append(Notice(store.watchers(pid), _link(pid, body),
-                                      f"{body}\n{pchome.prod_url(pid)}"))
-                if write:
-                    store.remove_product(pid)
-            elif write:
-                store.record_error(pid)
-            continue
-        if prod and new.price < prod["last_price"]:
-            body = f"{prod['name']}\n{prod['last_price']} -> {new.price}"
+        try:
+            await _check_one(store, fetch, pid, notices, write)
+        except Exception:
+            # One odd product (a malformed payload, say) must not stop the rest.
+            log.exception("check %s failed", pid)
+    return notices
+
+
+async def _check_one(store: Store, fetch, pid: str, notices: list[Notice], write: bool) -> None:
+    prod = store.product(pid)
+    new = await asyncio.to_thread(fetch, pid)
+    if new is None:
+        errors = prod["error"] if prod and prod["error"] else 0
+        if errors > MAX_ERRORS:
+            name = prod["name"] if prod else pid
+            body = f"{name}\n此商品已下架，自動移除監控"
             notices.append(Notice(store.watchers(pid), _link(pid, body),
                                   f"{body}\n{pchome.prod_url(pid)}"))
-        if write:
-            store.record_price(pid, new.price, new.name)
-    return notices
+            if write:
+                store.remove_product(pid)
+        elif write:
+            store.record_error(pid)
+        return
+    if prod and new.price < prod["last_price"]:
+        body = f"{prod['name']}\n{prod['last_price']} -> {new.price}"
+        notices.append(Notice(store.watchers(pid), _link(pid, body),
+                              f"{body}\n{pchome.prod_url(pid)}"))
+    if write:
+        store.record_price(pid, new.price, new.name)
 
 
 async def send(bot, notice: Notice) -> None:
