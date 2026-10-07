@@ -1,5 +1,6 @@
 import json, requests
 import dataset
+from time import sleep
 
 db = dataset.connect('sqlite:///bot.db')
 monitor_db = db['monitor']
@@ -14,8 +15,12 @@ def log2file(msg):
 
 def get_prod_info(pid):
     url = f"https://ecapi.pchome.com.tw/ecshop/prodapi/v2/prod/{pid}&fields=Name,Price&_callback=."
+    headers = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'
+              }
     for i in range(5):
-        res = requests.get(url)
+        sleep(1)
+        res = requests.get(url,headers=headers)
         if res.status_code == 200:
             break
     if res.status_code != 200:
