@@ -1,0 +1,6 @@
+*
+!pyproject.toml
+!uv.lock
+!bot.py
+!pchome.py
+!store.py
